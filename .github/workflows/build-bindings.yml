@@ -33,6 +33,12 @@ jobs:
           rustflags = ["-C", "link-arg=-mios-simulator-version-min=14.0"]
           EOF
 
+      # First build for native macOS to generate witness C files from WASM
+      # This compiles w2c2 for the host and generates the C code
+      - name: Build native (generate witness files)
+        run: cargo build --release
+
+      # Now cross-compile for iOS - the C files are already generated
       - name: Build iOS device (arm64)
         env:
           IPHONEOS_DEPLOYMENT_TARGET: "14.0"
@@ -95,6 +101,10 @@ jobs:
           [target.x86_64-linux-android]
           linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang"
           EOF
+
+      # First build for native Linux to generate witness C files
+      - name: Build native (generate witness files)
+        run: cargo build --release
 
       - name: Build Android arm64
         env:
