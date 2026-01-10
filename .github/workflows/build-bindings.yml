@@ -33,12 +33,21 @@ jobs:
           rustflags = ["-C", "link-arg=-mios-simulator-version-min=14.0"]
           EOF
 
-      # First build for native macOS to generate witness C files from WASM
-      # This compiles w2c2 for the host and generates the C code
-      - name: Build native (generate witness files)
-        run: cargo build --release
+      # Pre-build w2c2 for macOS host before any cargo builds
+      # This ensures w2c2 is available without cross-compilation issues
+      - name: Pre-build w2c2 for host
+        run: |
+          git clone https://github.com/aspect-ux/w2c2.git /tmp/w2c2
+          cd /tmp/w2c2
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(sysctl -n hw.ncpu)
+          # Make w2c2 available in a known location
+          mkdir -p $HOME/.local/bin
+          cp w2c2/w2c2 $HOME/.local/bin/
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      # Now cross-compile for iOS - the C files are already generated
+      # Build for iOS - w2c2 is pre-built for host
       - name: Build iOS device (arm64)
         env:
           IPHONEOS_DEPLOYMENT_TARGET: "14.0"
@@ -101,10 +110,6 @@ jobs:
           [target.x86_64-linux-android]
           linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang"
           EOF
-
-      # First build for native Linux to generate witness C files
-      - name: Build native (generate witness files)
-        run: cargo build --release
 
       - name: Build Android arm64
         env:
