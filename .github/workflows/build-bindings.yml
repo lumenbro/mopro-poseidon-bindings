@@ -39,8 +39,8 @@ jobs:
           cargo build --release 2>&1 | tee native_build.log
           echo "=== Native build complete ==="
 
-          # Find the build output directory for lumenbro_zk
-          BUILD_DIR=$(find target/release/build -type d -name "lumenbro_zk-*" -path "*/out" | head -1)
+          # Find the lumenbro_zk build output directory
+          BUILD_DIR=$(find target/release/build -maxdepth 2 -type d -name "out" -path "*lumenbro_zk*" | head -1)
           echo "Build output dir: $BUILD_DIR"
 
           # Create destination for circuit files
@@ -48,26 +48,20 @@ jobs:
 
           if [ -n "$BUILD_DIR" ] && [ -d "$BUILD_DIR" ]; then
             echo "=== Contents of build dir ==="
-            ls -laR "$BUILD_DIR" | head -100
+            find "$BUILD_DIR" -type f \( -name "*.c" -o -name "*.h" \) | head -50
 
-            # Copy all C files and headers
+            # Copy all C files (they're in subdirectories)
             find "$BUILD_DIR" -name "*.c" -exec cp {} /tmp/circuit_files/ \;
-            find "$BUILD_DIR" -name "*.h" -exec cp {} /tmp/circuit_files/ \;
 
-            # Also copy w2c2 headers if they exist in a subdirectory
-            if [ -d "$BUILD_DIR/w2c2" ]; then
-              cp -r "$BUILD_DIR/w2c2"/*.h /tmp/circuit_files/ 2>/dev/null || true
-              cp -r "$BUILD_DIR/w2c2/w2c2"/*.h /tmp/circuit_files/ 2>/dev/null || true
-            fi
+            # Copy all header files
+            find "$BUILD_DIR" -name "*.h" -exec cp {} /tmp/circuit_files/ \;
 
             echo "=== Copied files ==="
             ls -la /tmp/circuit_files/
           else
             echo "ERROR: Could not find build output directory"
-            echo "=== Searching for generated files ==="
             find target -name "preimage_poseidon.c" 2>/dev/null
             find target -name "w2c2_base.h" 2>/dev/null
-            find target -type d -name "out" -path "*build*" 2>/dev/null | head -5
             exit 1
           fi
 
