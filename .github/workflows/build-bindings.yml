@@ -1,0 +1,138 @@
+name: Build Mopro Bindings
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-ios:
+    runs-on: macos-14  # Apple Silicon runner (M1/M2)
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+
+      - name: Install uniffi-bindgen-react-native
+        run: cargo install uniffi-bindgen-react-native --version 0.29.3
+
+      - name: Build iOS device (arm64)
+        run: cargo build --release --target aarch64-apple-ios
+
+      - name: Build iOS simulator (arm64)
+        run: cargo build --release --target aarch64-apple-ios-sim
+
+      - name: Generate UniFFI bindings
+        run: |
+          uniffi-bindgen-react-native generate \
+            --library target/aarch64-apple-ios/release/liblumenbro_zk.a \
+            --out-dir bindings
+
+      - name: Create XCFramework
+        run: |
+          mkdir -p MoproFfiFramework.xcframework/ios-arm64
+          mkdir -p MoproFfiFramework.xcframework/ios-arm64-simulator
+
+          cp target/aarch64-apple-ios/release/liblumenbro_zk.a \
+             MoproFfiFramework.xcframework/ios-arm64/
+          cp target/aarch64-apple-ios-sim/release/liblumenbro_zk.a \
+             MoproFfiFramework.xcframework/ios-arm64-simulator/
+
+      - name: Upload iOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-bindings
+          path: |
+            MoproFfiFramework.xcframework/
+            bindings/
+            target/aarch64-apple-ios/release/liblumenbro_zk.a
+            target/aarch64-apple-ios-sim/release/liblumenbro_zk.a
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r26b
+
+      - name: Install cmake
+        run: sudo apt-get update && sudo apt-get install -y cmake
+
+      - name: Configure cargo for Android
+        run: |
+          mkdir -p ~/.cargo
+          cat >> ~/.cargo/config.toml << EOF
+          [target.aarch64-linux-android]
+          linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+
+          [target.armv7-linux-androideabi]
+          linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
+
+          [target.x86_64-linux-android]
+          linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang"
+          EOF
+
+      - name: Build Android arm64
+        run: cargo build --release --target aarch64-linux-android
+
+      - name: Build Android armv7
+        run: cargo build --release --target armv7-linux-androideabi
+
+      - name: Build Android x86_64
+        run: cargo build --release --target x86_64-linux-android
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-bindings
+          path: |
+            target/aarch64-linux-android/release/liblumenbro_zk.so
+            target/armv7-linux-androideabi/release/liblumenbro_zk.so
+            target/x86_64-linux-android/release/liblumenbro_zk.so
+
+  create-release:
+    needs: [build-ios, build-android]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Download iOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-bindings
+          path: release/ios
+
+      - name: Download Android artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: android-bindings
+          path: release/android
+
+      - name: Create release archive
+        run: |
+          cd release
+          zip -r ../mopro-poseidon-bindings.zip .
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mopro-poseidon-bindings
+          path: mopro-poseidon-bindings.zip

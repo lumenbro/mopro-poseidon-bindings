@@ -1,0 +1,19 @@
+build_mode = "release"
+target_adapters = ["circom"]
+target_platforms = [
+    "android",
+    "ios",
+]
+ios = ["arm64"]
+android = [
+    "x86_64",
+    "arm64-v8a",
+    "armeabi-v7a",
+]
+react_native = [
+    "ios",
+    "android",
+]
+auto_update = false
+
+[update]

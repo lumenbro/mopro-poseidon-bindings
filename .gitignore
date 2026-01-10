@@ -1,0 +1,24 @@
+# Build artifacts
+/target/
+/build/
+*.jar
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs (generated during CI)
+/bindings/
+/MoproFfiFramework.xcframework/
+/MoproiOSBindings/
+/MoproAndroidBindings/
+*.zip
+
+# Keep Cargo.lock for reproducible builds
+!Cargo.lock
