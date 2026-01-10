@@ -104,7 +104,7 @@ jobs:
       # Generate Swift bindings using UniFFI
       - name: Generate Swift bindings
         run: |
-          cargo install uniffi-bindgen-cs --version 0.9.0+v0.28.3 || cargo install uniffi_bindgen
+          cargo install uniffi-bindgen-cli
           mkdir -p bindings/swift
 
           # Find the native dylib - we need to build a native dylib first
@@ -113,7 +113,7 @@ jobs:
           cargo build --release
 
           # Generate Swift bindings from the native dylib
-          uniffi-bindgen generate --library target/release/liblumenbro_zk.dylib --language swift --out-dir bindings/swift || echo "Swift binding generation skipped"
+          uniffi-bindgen-cli generate --library target/release/liblumenbro_zk.dylib --language swift --out-dir bindings/swift || echo "Swift binding generation skipped"
 
           ls -la bindings/swift/ || echo "No Swift bindings generated"
 
@@ -185,14 +185,14 @@ jobs:
       # Build native Linux library for binding generation
       - name: Build native and generate Kotlin bindings
         run: |
-          cargo install uniffi-bindgen-cs --version 0.9.0+v0.28.3 || cargo install uniffi_bindgen
+          cargo install uniffi-bindgen-cli
           mkdir -p bindings/kotlin
 
           # Build native Linux library
           cargo build --release
 
           # Generate Kotlin bindings
-          uniffi-bindgen generate --library target/release/liblumenbro_zk.so --language kotlin --out-dir bindings/kotlin || echo "Kotlin binding generation skipped"
+          uniffi-bindgen-cli generate --library target/release/liblumenbro_zk.so --language kotlin --out-dir bindings/kotlin || echo "Kotlin binding generation skipped"
 
           ls -la bindings/kotlin/ || echo "No Kotlin bindings generated"
 
