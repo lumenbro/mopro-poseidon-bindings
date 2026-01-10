@@ -33,6 +33,7 @@ num-bigint    = "0.4.0"
 
 witnesscalc-adapter = "0.1"
 rust-witness = "0.1"
+cc = "1.0"
     
 # HALO2_BUILD_DEPENDENCIES
 # NOIR_BUILD_DEPENDENCIES

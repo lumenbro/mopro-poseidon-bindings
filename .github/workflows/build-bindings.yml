@@ -33,29 +33,37 @@ jobs:
           rustflags = ["-C", "link-arg=-mios-simulator-version-min=14.0"]
           EOF
 
-      # Pre-build w2c2 for macOS host before any cargo builds
-      # This ensures w2c2 is available without cross-compilation issues
-      - name: Pre-build w2c2 for host
+      # First, build for native macOS to generate the circuit C files
+      - name: Build native (generate circuit files)
         run: |
-          git clone https://github.com/aspect-ux/w2c2.git /tmp/w2c2
-          cd /tmp/w2c2
-          mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          make -j$(sysctl -n hw.ncpu)
-          # Make w2c2 available in a known location
-          mkdir -p $HOME/.local/bin
-          cp w2c2/w2c2 $HOME/.local/bin/
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          cargo build --release 2>&1 | tee native_build.log
+          # Extract the OUT_DIR from build output
+          OUT_DIR=$(grep -o 'Generated circuit files in: [^ ]*' native_build.log | head -1 | cut -d' ' -f5)
+          echo "Native OUT_DIR: $OUT_DIR"
+          # Find the generated C files
+          CIRCUIT_DIR=$(find target/release/build -name "preimage_poseidon.c" -exec dirname {} \; | head -1)
+          echo "Circuit dir: $CIRCUIT_DIR"
+          # Copy to a known location for iOS builds
+          mkdir -p /tmp/circuit_files
+          if [ -d "$CIRCUIT_DIR" ]; then
+            cp -r "$CIRCUIT_DIR"/* /tmp/circuit_files/
+            ls -la /tmp/circuit_files/
+          else
+            echo "Warning: Could not find circuit directory, searching more broadly..."
+            find target -name "*.c" -path "*build*" | head -20
+          fi
 
-      # Build for iOS - w2c2 is pre-built for host
+      # Build for iOS using pre-generated C files
       - name: Build iOS device (arm64)
         env:
           IPHONEOS_DEPLOYMENT_TARGET: "14.0"
+          CIRCUIT_C_FILES_DIR: /tmp/circuit_files
         run: cargo build --release --target aarch64-apple-ios
 
       - name: Build iOS simulator (arm64)
         env:
           IPHONEOS_DEPLOYMENT_TARGET: "14.0"
+          CIRCUIT_C_FILES_DIR: /tmp/circuit_files
         run: cargo build --release --target aarch64-apple-ios-sim
 
       - name: Create XCFramework structure
