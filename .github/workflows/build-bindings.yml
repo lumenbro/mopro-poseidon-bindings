@@ -47,21 +47,26 @@ jobs:
           mkdir -p /tmp/circuit_files
 
           if [ -n "$BUILD_DIR" ] && [ -d "$BUILD_DIR" ]; then
-            echo "=== Contents of build dir ==="
+            echo "=== All files in build dir ==="
             find "$BUILD_DIR" -type f \( -name "*.c" -o -name "*.h" \) | head -50
 
-            # Copy all C files (they're in subdirectories)
-            find "$BUILD_DIR" -name "*.c" -exec cp {} /tmp/circuit_files/ \;
+            # Copy the generated circuit C file
+            find "$BUILD_DIR" -name "preimage_poseidon.c" -exec cp {} /tmp/circuit_files/ \;
 
-            # Copy all header files
-            find "$BUILD_DIR" -name "*.h" -exec cp {} /tmp/circuit_files/ \;
+            # Copy only the w2c2-specific headers (NOT standard library shims like stddef.h)
+            # These are the w2c2 runtime headers needed for the generated code
+            find "$BUILD_DIR" -name "w2c2_base.h" -exec cp {} /tmp/circuit_files/ \;
 
+            # List what we copied
             echo "=== Copied files ==="
             ls -la /tmp/circuit_files/
+
+            # Show what w2c2_base.h includes
+            echo "=== w2c2_base.h contents (first 30 lines) ==="
+            head -30 /tmp/circuit_files/w2c2_base.h || true
           else
             echo "ERROR: Could not find build output directory"
             find target -name "preimage_poseidon.c" 2>/dev/null
-            find target -name "w2c2_base.h" 2>/dev/null
             exit 1
           fi
 
