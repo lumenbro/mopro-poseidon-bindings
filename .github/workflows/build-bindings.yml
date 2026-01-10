@@ -23,10 +23,16 @@ jobs:
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
 
       - name: Build iOS device (arm64)
-        run: cargo build --release --target aarch64-apple-ios
+        run: |
+          export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+          export IPHONEOS_DEPLOYMENT_TARGET=14.0
+          cargo build --release --target aarch64-apple-ios
 
       - name: Build iOS simulator (arm64)
-        run: cargo build --release --target aarch64-apple-ios-sim
+        run: |
+          export SDKROOT=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          export IPHONEOS_DEPLOYMENT_TARGET=14.0
+          cargo build --release --target aarch64-apple-ios-sim
 
       - name: Create XCFramework structure
         run: |
