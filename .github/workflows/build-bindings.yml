@@ -22,22 +22,13 @@ jobs:
         with:
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
 
-      - name: Install uniffi-bindgen-react-native
-        run: cargo install uniffi-bindgen-react-native --version 0.29.3
-
       - name: Build iOS device (arm64)
         run: cargo build --release --target aarch64-apple-ios
 
       - name: Build iOS simulator (arm64)
         run: cargo build --release --target aarch64-apple-ios-sim
 
-      - name: Generate UniFFI bindings
-        run: |
-          uniffi-bindgen-react-native generate \
-            --library target/aarch64-apple-ios/release/liblumenbro_zk.a \
-            --out-dir bindings
-
-      - name: Create XCFramework
+      - name: Create XCFramework structure
         run: |
           mkdir -p MoproFfiFramework.xcframework/ios-arm64
           mkdir -p MoproFfiFramework.xcframework/ios-arm64-simulator
@@ -53,7 +44,6 @@ jobs:
           name: ios-bindings
           path: |
             MoproFfiFramework.xcframework/
-            bindings/
             target/aarch64-apple-ios/release/liblumenbro_zk.a
             target/aarch64-apple-ios-sim/release/liblumenbro_zk.a
 
@@ -92,12 +82,24 @@ jobs:
           EOF
 
       - name: Build Android arm64
+        env:
+          CC_aarch64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang
+          CXX_aarch64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++
+          AR_aarch64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
         run: cargo build --release --target aarch64-linux-android
 
       - name: Build Android armv7
+        env:
+          CC_armv7-linux-androideabi: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang
+          CXX_armv7-linux-androideabi: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang++
+          AR_armv7-linux-androideabi: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
         run: cargo build --release --target armv7-linux-androideabi
 
       - name: Build Android x86_64
+        env:
+          CC_x86_64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang
+          CXX_x86_64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang++
+          AR_x86_64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
         run: cargo build --release --target x86_64-linux-android
 
       - name: Upload Android artifacts
