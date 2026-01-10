@@ -1,6 +1,6 @@
 
 [package]
-name = "lumenbro_zk"
+name = "mopro_example_app"
 version = "0.1.0"
 edition = "2021"
 

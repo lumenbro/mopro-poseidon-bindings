@@ -46,8 +46,8 @@ jobs:
           cargo build --release 2>&1 | tee native_build.log
           echo "=== Native build complete ==="
 
-          # Find the lumenbro_zk build output directory
-          BUILD_DIR=$(find target/release/build -maxdepth 2 -type d -name "out" -path "*lumenbro_zk*" | head -1)
+          # Find the mopro_example_app build output directory
+          BUILD_DIR=$(find target/release/build -maxdepth 2 -type d -name "out" -path "*mopro_example_app*" | head -1)
           echo "Build output dir: $BUILD_DIR"
 
           # Create destination for circuit files
@@ -96,9 +96,9 @@ jobs:
           mkdir -p MoproFfiFramework.xcframework/ios-arm64
           mkdir -p MoproFfiFramework.xcframework/ios-arm64-simulator
 
-          cp target/aarch64-apple-ios/release/liblumenbro_zk.a \
+          cp target/aarch64-apple-ios/release/libmopro_example_app.a \
              MoproFfiFramework.xcframework/ios-arm64/
-          cp target/aarch64-apple-ios-sim/release/liblumenbro_zk.a \
+          cp target/aarch64-apple-ios-sim/release/libmopro_example_app.a \
              MoproFfiFramework.xcframework/ios-arm64-simulator/
 
       - name: Upload iOS artifacts
@@ -107,8 +107,8 @@ jobs:
           name: ios-bindings
           path: |
             MoproFfiFramework.xcframework/
-            target/aarch64-apple-ios/release/liblumenbro_zk.a
-            target/aarch64-apple-ios-sim/release/liblumenbro_zk.a
+            target/aarch64-apple-ios/release/libmopro_example_app.a
+            target/aarch64-apple-ios-sim/release/libmopro_example_app.a
 
   build-android:
     runs-on: ubuntu-latest
@@ -170,9 +170,9 @@ jobs:
         with:
           name: android-bindings
           path: |
-            target/aarch64-linux-android/release/liblumenbro_zk.so
-            target/armv7-linux-androideabi/release/liblumenbro_zk.so
-            target/x86_64-linux-android/release/liblumenbro_zk.so
+            target/aarch64-linux-android/release/libmopro_example_app.so
+            target/armv7-linux-androideabi/release/libmopro_example_app.so
+            target/x86_64-linux-android/release/libmopro_example_app.so
 
   create-release:
     needs: [build-ios, build-android]
