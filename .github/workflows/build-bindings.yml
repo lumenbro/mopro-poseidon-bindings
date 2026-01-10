@@ -50,8 +50,9 @@ jobs:
             echo "=== All files in build dir ==="
             find "$BUILD_DIR" -type f \( -name "*.c" -o -name "*.h" \) | head -50
 
-            # Copy the generated circuit C file
+            # Copy the generated circuit C file and its header
             find "$BUILD_DIR" -name "preimage_poseidon.c" -exec cp {} /tmp/circuit_files/ \;
+            find "$BUILD_DIR" -name "preimage_poseidon.h" -exec cp {} /tmp/circuit_files/ \;
 
             # Copy only the w2c2-specific headers (NOT standard library shims like stddef.h)
             # These are the w2c2 runtime headers needed for the generated code
