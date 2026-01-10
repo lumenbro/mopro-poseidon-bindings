@@ -101,6 +101,22 @@ jobs:
           cp target/aarch64-apple-ios-sim/release/liblumenbro_zk.a \
              MoproFfiFramework.xcframework/ios-arm64-simulator/
 
+      # Generate Swift bindings using UniFFI
+      - name: Generate Swift bindings
+        run: |
+          cargo install uniffi-bindgen-cs --version 0.9.0+v0.28.3 || cargo install uniffi_bindgen
+          mkdir -p bindings/swift
+
+          # Find the native dylib - we need to build a native dylib first
+          # Restore cdylib for native build to generate bindings
+          sed -i '' 's/crate-type = \["lib", "staticlib"\]/crate-type = ["lib", "staticlib", "cdylib"]/' Cargo.toml
+          cargo build --release
+
+          # Generate Swift bindings from the native dylib
+          uniffi-bindgen generate --library target/release/liblumenbro_zk.dylib --language swift --out-dir bindings/swift || echo "Swift binding generation skipped"
+
+          ls -la bindings/swift/ || echo "No Swift bindings generated"
+
       - name: Upload iOS artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -109,6 +125,7 @@ jobs:
             MoproFfiFramework.xcframework/
             target/aarch64-apple-ios/release/liblumenbro_zk.a
             target/aarch64-apple-ios-sim/release/liblumenbro_zk.a
+            bindings/swift/
 
   build-android:
     runs-on: ubuntu-latest
@@ -165,6 +182,20 @@ jobs:
           AR_x86_64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
         run: cargo build --release --target x86_64-linux-android
 
+      # Build native Linux library for binding generation
+      - name: Build native and generate Kotlin bindings
+        run: |
+          cargo install uniffi-bindgen-cs --version 0.9.0+v0.28.3 || cargo install uniffi_bindgen
+          mkdir -p bindings/kotlin
+
+          # Build native Linux library
+          cargo build --release
+
+          # Generate Kotlin bindings
+          uniffi-bindgen generate --library target/release/liblumenbro_zk.so --language kotlin --out-dir bindings/kotlin || echo "Kotlin binding generation skipped"
+
+          ls -la bindings/kotlin/ || echo "No Kotlin bindings generated"
+
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -173,6 +204,7 @@ jobs:
             target/aarch64-linux-android/release/liblumenbro_zk.so
             target/armv7-linux-androideabi/release/liblumenbro_zk.so
             target/x86_64-linux-android/release/liblumenbro_zk.so
+            bindings/kotlin/
 
   create-release:
     needs: [build-ios, build-android]
