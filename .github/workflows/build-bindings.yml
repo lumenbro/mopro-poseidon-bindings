@@ -37,20 +37,38 @@ jobs:
       - name: Build native (generate circuit files)
         run: |
           cargo build --release 2>&1 | tee native_build.log
-          # Extract the OUT_DIR from build output
-          OUT_DIR=$(grep -o 'Generated circuit files in: [^ ]*' native_build.log | head -1 | cut -d' ' -f5)
-          echo "Native OUT_DIR: $OUT_DIR"
-          # Find the generated C files
-          CIRCUIT_DIR=$(find target/release/build -name "preimage_poseidon.c" -exec dirname {} \; | head -1)
-          echo "Circuit dir: $CIRCUIT_DIR"
-          # Copy to a known location for iOS builds
+          echo "=== Native build complete ==="
+
+          # Find the build output directory for lumenbro_zk
+          BUILD_DIR=$(find target/release/build -type d -name "lumenbro_zk-*" -path "*/out" | head -1)
+          echo "Build output dir: $BUILD_DIR"
+
+          # Create destination for circuit files
           mkdir -p /tmp/circuit_files
-          if [ -d "$CIRCUIT_DIR" ]; then
-            cp -r "$CIRCUIT_DIR"/* /tmp/circuit_files/
+
+          if [ -n "$BUILD_DIR" ] && [ -d "$BUILD_DIR" ]; then
+            echo "=== Contents of build dir ==="
+            ls -laR "$BUILD_DIR" | head -100
+
+            # Copy all C files and headers
+            find "$BUILD_DIR" -name "*.c" -exec cp {} /tmp/circuit_files/ \;
+            find "$BUILD_DIR" -name "*.h" -exec cp {} /tmp/circuit_files/ \;
+
+            # Also copy w2c2 headers if they exist in a subdirectory
+            if [ -d "$BUILD_DIR/w2c2" ]; then
+              cp -r "$BUILD_DIR/w2c2"/*.h /tmp/circuit_files/ 2>/dev/null || true
+              cp -r "$BUILD_DIR/w2c2/w2c2"/*.h /tmp/circuit_files/ 2>/dev/null || true
+            fi
+
+            echo "=== Copied files ==="
             ls -la /tmp/circuit_files/
           else
-            echo "Warning: Could not find circuit directory, searching more broadly..."
-            find target -name "*.c" -path "*build*" | head -20
+            echo "ERROR: Could not find build output directory"
+            echo "=== Searching for generated files ==="
+            find target -name "preimage_poseidon.c" 2>/dev/null
+            find target -name "w2c2_base.h" 2>/dev/null
+            find target -type d -name "out" -path "*build*" 2>/dev/null | head -5
+            exit 1
           fi
 
       # Build for iOS using pre-generated C files
