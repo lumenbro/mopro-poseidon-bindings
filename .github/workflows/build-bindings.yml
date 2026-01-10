@@ -33,6 +33,13 @@ jobs:
           rustflags = ["-C", "link-arg=-mios-simulator-version-min=14.0"]
           EOF
 
+      # iOS only needs staticlib (no cdylib) - remove it to avoid linking issues
+      - name: Patch Cargo.toml for iOS (staticlib only)
+        run: |
+          sed -i '' 's/crate-type = \["lib", "staticlib", "cdylib"\]/crate-type = ["lib", "staticlib"]/' Cargo.toml
+          echo "=== Patched Cargo.toml ==="
+          grep crate-type Cargo.toml
+
       # First, build for native macOS to generate the circuit C files
       - name: Build native (generate circuit files)
         run: |
