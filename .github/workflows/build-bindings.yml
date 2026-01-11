@@ -121,31 +121,71 @@ jobs:
             }
           }
 
-          echo "=== Build complete, listing outputs ==="
+          echo "=== Build complete, listing ALL outputs ==="
           ls -la
-
-          if [ -d "MoproReactNativeBindings" ]; then
-            echo "=== React Native bindings structure ==="
-            find MoproReactNativeBindings -type f | head -50
-          fi
+          echo ""
+          echo "=== Looking for any generated directories ==="
+          find . -maxdepth 2 -type d -name "*Binding*" -o -name "*binding*" -o -name "*react*" -o -name "*React*" -o -name "target" 2>/dev/null || true
+          echo ""
+          echo "=== All directories in current folder ==="
+          ls -la */ 2>/dev/null || true
+          echo ""
+          echo "=== Contents of target if exists ==="
+          ls -la target/ 2>/dev/null || echo "No target directory"
+          echo ""
+          echo "=== build.log contents ==="
+          cat build.log 2>/dev/null || echo "No build.log"
 
       - name: Package React Native bindings
         run: |
-          if [ -d "MoproReactNativeBindings" ]; then
-            # Create a clean package
-            mkdir -p release
-            cp -R MoproReactNativeBindings/* release/
+          # Look for any of the possible output directory names
+          BINDINGS_DIR=""
+          for dir in "MoproReactNativeBindings" "mopro-react-native-bindings" "react-native-bindings" "out" "output"; do
+            if [ -d "$dir" ]; then
+              BINDINGS_DIR="$dir"
+              break
+            fi
+          done
 
-            # List what we're packaging
+          if [ -n "$BINDINGS_DIR" ]; then
+            echo "=== Found bindings directory: $BINDINGS_DIR ==="
+            mkdir -p release
+            cp -R "$BINDINGS_DIR"/* release/
+
             echo "=== Package contents ==="
             find release -type f | head -100
 
-            # Create zip
             cd release
             zip -r ../mopro-poseidon-react-native.zip .
           else
-            echo "ERROR: MoproReactNativeBindings not found"
-            exit 1
+            echo "=== No bindings directory found, checking for individual outputs ==="
+            ls -la
+
+            # Check if we have target directory with built libraries
+            if [ -d "target" ]; then
+              echo "=== Found target directory, packaging raw build outputs ==="
+              mkdir -p release/ios release/android
+
+              # Copy iOS libraries
+              find target -name "*.a" -path "*apple-ios*" -exec cp {} release/ios/ \; 2>/dev/null || true
+
+              # Copy Android libraries
+              find target -name "*.a" -path "*android*" -exec cp {} release/android/ \; 2>/dev/null || true
+
+              echo "=== Raw build contents ==="
+              find release -type f
+
+              if [ "$(find release -type f | wc -l)" -gt 0 ]; then
+                cd release
+                zip -r ../mopro-poseidon-react-native.zip .
+              else
+                echo "ERROR: No build outputs found"
+                exit 1
+              fi
+            else
+              echo "ERROR: No outputs found at all"
+              exit 1
+            fi
           fi
 
       - name: Upload React Native package
