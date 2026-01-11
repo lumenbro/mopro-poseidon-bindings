@@ -259,10 +259,6 @@ jobs:
             sed -i 's|#include "string.h"|#include <string.h>|g' /tmp/circuit_files/w2c2_base.h
             sed -i 's|#include "stdlib.h"|#include <stdlib.h>|g' /tmp/circuit_files/w2c2_base.h
 
-            # Add locale.h include BEFORE string.h and stdlib.h to define locale_t
-            # The Android NDK headers use locale_t which is defined in locale.h
-            sed -i 's|#include <string.h>|#include <locale.h>\n#include <string.h>|' /tmp/circuit_files/w2c2_base.h
-
             echo "=== Patched w2c2_base.h (first 30 lines) ==="
             head -30 /tmp/circuit_files/w2c2_base.h
           fi

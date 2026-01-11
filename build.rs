@@ -23,11 +23,19 @@ fn main() {
             // Find and compile the circuit C file
             let c_file = circuit_path.join("preimage_poseidon.c");
             if c_file.exists() {
-                cc::Build::new()
+                let mut build = cc::Build::new();
+                build
                     .file(&c_file)
                     .include(&circuit_path)
-                    .opt_level(3)
-                    .compile("circuit");
+                    .opt_level(3);
+
+                // For Android, we need _GNU_SOURCE to get proper locale_t definition
+                // from the NDK headers
+                if is_android {
+                    build.define("_GNU_SOURCE", None);
+                }
+
+                build.compile("circuit");
 
                 println!("cargo:rerun-if-changed={}", c_file.display());
             } else {
