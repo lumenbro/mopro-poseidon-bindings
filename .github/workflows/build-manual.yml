@@ -56,6 +56,38 @@ jobs:
           fi
           ls -la /tmp/circuit_files/
 
+      - name: Patch w2c2 headers for iOS compatibility
+        run: |
+          # The w2c2-generated stddef.h includes Linux-specific headers
+          # Remove it so the system stddef.h is used instead
+          if [ -f /tmp/circuit_files/stddef.h ]; then
+            echo "Removing custom stddef.h that has Linux-specific includes"
+            rm /tmp/circuit_files/stddef.h
+          fi
+
+          # Also patch w2c2_base.h to use standard headers
+          if [ -f /tmp/circuit_files/w2c2_base.h ]; then
+            echo "Patching w2c2_base.h for iOS compatibility"
+            # Replace custom header includes with standard ones
+            sed -i '' 's|#include "stddef.h"|#include <stddef.h>|g' /tmp/circuit_files/w2c2_base.h
+            sed -i '' 's|#include "stdint.h"|#include <stdint.h>|g' /tmp/circuit_files/w2c2_base.h
+            sed -i '' 's|#include "inttypes.h"|#include <inttypes.h>|g' /tmp/circuit_files/w2c2_base.h
+            sed -i '' 's|#include "math.h"|#include <math.h>|g' /tmp/circuit_files/w2c2_base.h
+            sed -i '' 's|#include "string.h"|#include <string.h>|g' /tmp/circuit_files/w2c2_base.h
+            cat /tmp/circuit_files/w2c2_base.h | head -20
+          fi
+
+          # Remove any other custom standard library headers
+          for header in stdint.h inttypes.h math.h string.h stdlib.h; do
+            if [ -f "/tmp/circuit_files/$header" ]; then
+              echo "Removing custom $header"
+              rm "/tmp/circuit_files/$header"
+            fi
+          done
+
+          echo "=== Remaining circuit files ==="
+          ls -la /tmp/circuit_files/
+
       - name: Build iOS device (arm64)
         env:
           IPHONEOS_DEPLOYMENT_TARGET: "14.0"
