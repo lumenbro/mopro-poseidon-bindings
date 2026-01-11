@@ -61,13 +61,42 @@ jobs:
           echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
           echo "NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
 
+      - name: Check mopro build help
+        run: |
+          echo "=== Checking mopro build options ==="
+          mopro build --help || true
+          echo ""
+          echo "=== Checking mopro --help ==="
+          mopro --help || true
+
+      - name: Pre-create Config.toml to skip prompts
+        run: |
+          # Create a Config.toml with release mode pre-selected
+          cat > Config.toml << 'EOF'
+          [build]
+          mode = "release"
+          EOF
+          echo "=== Created Config.toml ==="
+          cat Config.toml
+
       - name: Build React Native bindings with mopro CLI
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
           echo "=== Building React Native bindings ==="
-          mopro build --platforms react-native 2>&1 | tee build.log
+          # Try with --mode release flag first
+          mopro build --platforms react-native --mode release 2>&1 | tee build.log || {
+            echo "=== --mode flag failed, trying with release positional arg ==="
+            mopro build --platforms react-native release 2>&1 | tee build.log || {
+              echo "=== Positional arg failed, trying with Config.toml ==="
+              mopro build --platforms react-native 2>&1 | tee build.log || {
+                echo "=== All attempts failed ==="
+                cat build.log
+                exit 1
+              }
+            }
+          }
 
           echo "=== Build complete, listing outputs ==="
           ls -la
