@@ -71,10 +71,20 @@ jobs:
 
       - name: Pre-create Config.toml to skip prompts
         run: |
-          # Create a Config.toml with release mode pre-selected
+          # Create a Config.toml with all options pre-selected
           cat > Config.toml << 'EOF'
           [build]
           mode = "release"
+
+          [build.react-native]
+          architectures = [
+            "aarch64-apple-ios",
+            "aarch64-apple-ios-sim",
+            "aarch64-linux-android",
+            "armv7-linux-androideabi",
+            "x86_64-linux-android",
+            "i686-linux-android"
+          ]
           EOF
           echo "=== Created Config.toml ==="
           cat Config.toml
@@ -83,16 +93,29 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          CI: "true"
+          MOPRO_CI: "true"
+          TERM: dumb
         run: |
           echo "=== Building React Native bindings ==="
-          # Try with --mode release flag first
-          mopro build --platforms react-native --mode release 2>&1 | tee build.log || {
-            echo "=== --mode flag failed, trying with release positional arg ==="
-            mopro build --platforms react-native release 2>&1 | tee build.log || {
-              echo "=== Positional arg failed, trying with Config.toml ==="
-              mopro build --platforms react-native 2>&1 | tee build.log || {
+          echo "=== Trying with various flag combinations ==="
+
+          # Try with all flags we can think of
+          mopro build \
+            --platforms react-native \
+            --mode release \
+            --arch aarch64-apple-ios,aarch64-apple-ios-sim,aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android \
+            2>&1 | tee build.log || {
+
+            echo "=== Full flags failed, trying simpler ==="
+            mopro build --platforms react-native --mode release 2>&1 | tee build.log || {
+
+              echo "=== Checking if there's a non-interactive flag ==="
+              mopro build --help | grep -i "interactive\|prompt\|ci\|yes\|auto" || true
+
+              echo "=== Trying with yes pipe ==="
+              yes | mopro build --platforms react-native 2>&1 | head -1000 | tee build.log || {
                 echo "=== All attempts failed ==="
-                cat build.log
                 exit 1
               }
             }
