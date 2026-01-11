@@ -77,8 +77,12 @@ jobs:
             cat /tmp/circuit_files/w2c2_base.h | head -20
           fi
 
-          # Remove any other custom standard library headers
-          for header in stdint.h inttypes.h math.h string.h stdlib.h; do
+          # Remove ALL custom standard library headers from w2c2
+          # These all have Linux-specific includes that break iOS builds
+          for header in stdint.h inttypes.h math.h string.h stdlib.h alloca.h \
+                        stdio.h limits.h float.h stdbool.h stdarg.h errno.h \
+                        ctype.h assert.h signal.h time.h locale.h setjmp.h \
+                        fenv.h complex.h wchar.h wctype.h; do
             if [ -f "/tmp/circuit_files/$header" ]; then
               echo "Removing custom $header"
               rm "/tmp/circuit_files/$header"
