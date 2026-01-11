@@ -247,15 +247,24 @@ jobs:
             fi
           done
 
-          # Patch w2c2_base.h to use standard headers
+          # Patch w2c2_base.h to use standard headers and fix locale_t issue
           if [ -f /tmp/circuit_files/w2c2_base.h ]; then
             echo "Patching w2c2_base.h for Android compatibility"
+
+            # Replace quoted includes with angle bracket includes
             sed -i 's|#include "stddef.h"|#include <stddef.h>|g' /tmp/circuit_files/w2c2_base.h
             sed -i 's|#include "stdint.h"|#include <stdint.h>|g' /tmp/circuit_files/w2c2_base.h
             sed -i 's|#include "inttypes.h"|#include <inttypes.h>|g' /tmp/circuit_files/w2c2_base.h
             sed -i 's|#include "math.h"|#include <math.h>|g' /tmp/circuit_files/w2c2_base.h
             sed -i 's|#include "string.h"|#include <string.h>|g' /tmp/circuit_files/w2c2_base.h
-            cat /tmp/circuit_files/w2c2_base.h | head -20
+            sed -i 's|#include "stdlib.h"|#include <stdlib.h>|g' /tmp/circuit_files/w2c2_base.h
+
+            # Add locale.h include BEFORE string.h and stdlib.h to define locale_t
+            # The Android NDK headers use locale_t which is defined in locale.h
+            sed -i 's|#include <string.h>|#include <locale.h>\n#include <string.h>|' /tmp/circuit_files/w2c2_base.h
+
+            echo "=== Patched w2c2_base.h (first 30 lines) ==="
+            head -30 /tmp/circuit_files/w2c2_base.h
           fi
 
           echo "=== Remaining circuit files ==="
