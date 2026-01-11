@@ -1,4 +1,4 @@
-name: Build Mopro Bindings
+name: Build Mopro React Native Bindings
 
 on:
   push:
@@ -11,8 +11,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-ios:
-    runs-on: macos-14  # Apple Silicon runner (M1/M2)
+  build-react-native:
+    runs-on: macos-14  # Apple Silicon runner (M1/M2) - required for iOS
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,106 +20,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
-
-      - name: Configure cargo for iOS
-        run: |
-          mkdir -p ~/.cargo
-          cat >> ~/.cargo/config.toml << 'EOF'
-          [target.aarch64-apple-ios]
-          rustflags = ["-C", "link-arg=-mios-version-min=14.0"]
-
-          [target.aarch64-apple-ios-sim]
-          rustflags = ["-C", "link-arg=-mios-simulator-version-min=14.0"]
-          EOF
-
-      # iOS only needs staticlib (no cdylib) - remove it to avoid linking issues
-      - name: Patch Cargo.toml for iOS (staticlib only)
-        run: |
-          sed -i '' 's/crate-type = \["lib", "staticlib", "cdylib"\]/crate-type = ["lib", "staticlib"]/' Cargo.toml
-          echo "=== Patched Cargo.toml ==="
-          grep crate-type Cargo.toml
-
-      # First, build for native macOS to generate the circuit C files
-      - name: Build native (generate circuit files)
-        run: |
-          cargo build --release 2>&1 | tee native_build.log
-          echo "=== Native build complete ==="
-
-          # Find the mopro_example_app build output directory
-          BUILD_DIR=$(find target/release/build -maxdepth 2 -type d -name "out" -path "*mopro_example_app*" | head -1)
-          echo "Build output dir: $BUILD_DIR"
-
-          # Create destination for circuit files
-          mkdir -p /tmp/circuit_files
-
-          if [ -n "$BUILD_DIR" ] && [ -d "$BUILD_DIR" ]; then
-            echo "=== All files in build dir ==="
-            find "$BUILD_DIR" -type f \( -name "*.c" -o -name "*.h" \) | head -50
-
-            # Copy the generated circuit C file and its header
-            find "$BUILD_DIR" -name "preimage_poseidon.c" -exec cp {} /tmp/circuit_files/ \;
-            find "$BUILD_DIR" -name "preimage_poseidon.h" -exec cp {} /tmp/circuit_files/ \;
-
-            # Copy only the w2c2-specific headers (NOT standard library shims like stddef.h)
-            # These are the w2c2 runtime headers needed for the generated code
-            find "$BUILD_DIR" -name "w2c2_base.h" -exec cp {} /tmp/circuit_files/ \;
-
-            # List what we copied
-            echo "=== Copied files ==="
-            ls -la /tmp/circuit_files/
-
-            # Show what w2c2_base.h includes
-            echo "=== w2c2_base.h contents (first 30 lines) ==="
-            head -30 /tmp/circuit_files/w2c2_base.h || true
-          else
-            echo "ERROR: Could not find build output directory"
-            find target -name "preimage_poseidon.c" 2>/dev/null
-            exit 1
-          fi
-
-      # Build for iOS using pre-generated C files
-      - name: Build iOS device (arm64)
-        env:
-          IPHONEOS_DEPLOYMENT_TARGET: "14.0"
-          CIRCUIT_C_FILES_DIR: /tmp/circuit_files
-        run: cargo build --release --target aarch64-apple-ios
-
-      - name: Build iOS simulator (arm64)
-        env:
-          IPHONEOS_DEPLOYMENT_TARGET: "14.0"
-          CIRCUIT_C_FILES_DIR: /tmp/circuit_files
-        run: cargo build --release --target aarch64-apple-ios-sim
-
-      - name: Create XCFramework structure
-        run: |
-          mkdir -p MoproFfiFramework.xcframework/ios-arm64
-          mkdir -p MoproFfiFramework.xcframework/ios-arm64-simulator
-
-          cp target/aarch64-apple-ios/release/libmopro_example_app.a \
-             MoproFfiFramework.xcframework/ios-arm64/
-          cp target/aarch64-apple-ios-sim/release/libmopro_example_app.a \
-             MoproFfiFramework.xcframework/ios-arm64-simulator/
-
-      - name: Upload iOS artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-bindings
-          path: |
-            MoproFfiFramework.xcframework/
-            target/aarch64-apple-ios/release/libmopro_example_app.a
-            target/aarch64-apple-ios-sim/release/libmopro_example_app.a
-
-  build-android:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios,aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
 
       - name: Setup Android NDK
         uses: nttld/setup-ndk@v1
@@ -127,88 +28,83 @@ jobs:
         with:
           ndk-version: r26b
 
-      - name: Install cmake
-        run: sudo apt-get update && sudo apt-get install -y cmake
+      - name: Install mopro CLI
+        run: |
+          cargo install --git https://github.com/zkmopro/mopro mopro-cli
+          mopro --version
 
-      - name: Configure cargo for Android
+      - name: Configure cargo for cross-compilation
         run: |
           mkdir -p ~/.cargo
           cat >> ~/.cargo/config.toml << EOF
+          [target.aarch64-apple-ios]
+          rustflags = ["-C", "link-arg=-mios-version-min=14.0"]
+
+          [target.aarch64-apple-ios-sim]
+          rustflags = ["-C", "link-arg=-mios-simulator-version-min=14.0"]
+
           [target.aarch64-linux-android]
-          linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+          linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang"
 
           [target.armv7-linux-androideabi]
-          linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
+          linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/darwin-x86_64/bin/armv7a-linux-androideabi24-clang"
 
           [target.x86_64-linux-android]
-          linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang"
+          linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/darwin-x86_64/bin/x86_64-linux-android24-clang"
 
           [target.i686-linux-android]
-          linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android24-clang"
+          linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/darwin-x86_64/bin/i686-linux-android24-clang"
           EOF
 
-      - name: Build Android arm64
-        env:
-          CC_aarch64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang
-          CXX_aarch64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++
-          AR_aarch64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
-        run: cargo build --release --target aarch64-linux-android
-
-      - name: Build Android armv7
-        env:
-          CC_armv7-linux-androideabi: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang
-          CXX_armv7-linux-androideabi: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang++
-          AR_armv7-linux-androideabi: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
-        run: cargo build --release --target armv7-linux-androideabi
-
-      - name: Build Android x86_64
-        env:
-          CC_x86_64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang
-          CXX_x86_64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang++
-          AR_x86_64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
-        run: cargo build --release --target x86_64-linux-android
-
-      - name: Build Android x86
-        env:
-          CC_i686-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android24-clang
-          CXX_i686-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android24-clang++
-          AR_i686-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
-        run: cargo build --release --target i686-linux-android
-
-      - name: Upload Android artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-bindings
-          path: |
-            target/aarch64-linux-android/release/libmopro_example_app.a
-            target/armv7-linux-androideabi/release/libmopro_example_app.a
-            target/x86_64-linux-android/release/libmopro_example_app.a
-            target/i686-linux-android/release/libmopro_example_app.a
-
-  create-release:
-    needs: [build-ios, build-android]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - name: Download iOS artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: ios-bindings
-          path: release/ios
-
-      - name: Download Android artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: android-bindings
-          path: release/android
-
-      - name: Create release archive
+      - name: Set Android NDK environment
         run: |
-          cd release
-          zip -r ../mopro-poseidon-bindings.zip .
+          echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+          echo "NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
 
-      - name: Upload release artifact
+      - name: Build React Native bindings with mopro CLI
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          echo "=== Building React Native bindings ==="
+          mopro build --platforms react-native 2>&1 | tee build.log
+
+          echo "=== Build complete, listing outputs ==="
+          ls -la
+
+          if [ -d "MoproReactNativeBindings" ]; then
+            echo "=== React Native bindings structure ==="
+            find MoproReactNativeBindings -type f | head -50
+          fi
+
+      - name: Package React Native bindings
+        run: |
+          if [ -d "MoproReactNativeBindings" ]; then
+            # Create a clean package
+            mkdir -p release
+            cp -R MoproReactNativeBindings/* release/
+
+            # List what we're packaging
+            echo "=== Package contents ==="
+            find release -type f | head -100
+
+            # Create zip
+            cd release
+            zip -r ../mopro-poseidon-react-native.zip .
+          else
+            echo "ERROR: MoproReactNativeBindings not found"
+            exit 1
+          fi
+
+      - name: Upload React Native package
         uses: actions/upload-artifact@v4
         with:
-          name: mopro-poseidon-bindings
-          path: mopro-poseidon-bindings.zip
+          name: mopro-poseidon-react-native
+          path: mopro-poseidon-react-native.zip
+
+      - name: Upload individual artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: react-native-bindings
+          path: |
+            MoproReactNativeBindings/
