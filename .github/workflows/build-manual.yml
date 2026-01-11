@@ -240,7 +240,7 @@ jobs:
           for header in stddef.h stdint.h inttypes.h math.h string.h stdlib.h alloca.h \
                         stdio.h limits.h float.h stdbool.h stdarg.h errno.h \
                         ctype.h assert.h signal.h time.h locale.h setjmp.h \
-                        fenv.h complex.h wchar.h wctype.h malloc.h; do
+                        fenv.h complex.h wchar.h wctype.h malloc.h strings.h; do
             if [ -f "/tmp/circuit_files/$header" ]; then
               echo "Removing custom $header"
               rm "/tmp/circuit_files/$header"
@@ -258,6 +258,10 @@ jobs:
             sed -i 's|#include "math.h"|#include <math.h>|g' /tmp/circuit_files/w2c2_base.h
             sed -i 's|#include "string.h"|#include <string.h>|g' /tmp/circuit_files/w2c2_base.h
             sed -i 's|#include "stdlib.h"|#include <stdlib.h>|g' /tmp/circuit_files/w2c2_base.h
+
+            # Add locale_t typedef at the very beginning of the file
+            # Android NDK's string.h/stdlib.h use locale_t but it's not always defined
+            sed -i '1i\/* Android locale_t fix */\n#ifndef locale_t\n#define locale_t __locale_t\ntypedef struct __locale_struct* __locale_t;\n#endif' /tmp/circuit_files/w2c2_base.h
 
             echo "=== Patched w2c2_base.h (first 30 lines) ==="
             head -30 /tmp/circuit_files/w2c2_base.h
