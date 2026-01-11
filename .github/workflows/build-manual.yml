@@ -218,8 +218,52 @@ jobs:
           linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android24-clang"
           EOF
 
+      - name: Build native first (generate circuit files)
+        run: cargo build --release
+
+      - name: Find and prepare circuit files
+        run: |
+          BUILD_DIR=$(find target/release/build -maxdepth 2 -type d -name "out" -path "*mopro_example_app*" | head -1)
+          mkdir -p /tmp/circuit_files
+          if [ -n "$BUILD_DIR" ]; then
+            echo "Found circuit files in: $BUILD_DIR"
+            find "$BUILD_DIR" -name "*.c" -exec cp {} /tmp/circuit_files/ \;
+            find "$BUILD_DIR" -name "*.h" -exec cp {} /tmp/circuit_files/ \;
+          fi
+          echo "=== Circuit files ==="
+          ls -la /tmp/circuit_files/
+
+      - name: Patch w2c2 headers for Android compatibility
+        run: |
+          # Remove custom standard library headers that have Linux-specific includes
+          # The NDK provides proper headers for Android
+          for header in stddef.h stdint.h inttypes.h math.h string.h stdlib.h alloca.h \
+                        stdio.h limits.h float.h stdbool.h stdarg.h errno.h \
+                        ctype.h assert.h signal.h time.h locale.h setjmp.h \
+                        fenv.h complex.h wchar.h wctype.h; do
+            if [ -f "/tmp/circuit_files/$header" ]; then
+              echo "Removing custom $header"
+              rm "/tmp/circuit_files/$header"
+            fi
+          done
+
+          # Patch w2c2_base.h to use standard headers
+          if [ -f /tmp/circuit_files/w2c2_base.h ]; then
+            echo "Patching w2c2_base.h for Android compatibility"
+            sed -i 's|#include "stddef.h"|#include <stddef.h>|g' /tmp/circuit_files/w2c2_base.h
+            sed -i 's|#include "stdint.h"|#include <stdint.h>|g' /tmp/circuit_files/w2c2_base.h
+            sed -i 's|#include "inttypes.h"|#include <inttypes.h>|g' /tmp/circuit_files/w2c2_base.h
+            sed -i 's|#include "math.h"|#include <math.h>|g' /tmp/circuit_files/w2c2_base.h
+            sed -i 's|#include "string.h"|#include <string.h>|g' /tmp/circuit_files/w2c2_base.h
+            cat /tmp/circuit_files/w2c2_base.h | head -20
+          fi
+
+          echo "=== Remaining circuit files ==="
+          ls -la /tmp/circuit_files/
+
       - name: Build Android arm64
         env:
+          CIRCUIT_C_FILES_DIR: /tmp/circuit_files
           CC_aarch64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang
           CXX_aarch64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++
           AR_aarch64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
@@ -227,6 +271,7 @@ jobs:
 
       - name: Build Android armv7
         env:
+          CIRCUIT_C_FILES_DIR: /tmp/circuit_files
           CC_armv7-linux-androideabi: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang
           CXX_armv7-linux-androideabi: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang++
           AR_armv7-linux-androideabi: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
@@ -234,6 +279,7 @@ jobs:
 
       - name: Build Android x86_64
         env:
+          CIRCUIT_C_FILES_DIR: /tmp/circuit_files
           CC_x86_64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang
           CXX_x86_64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang++
           AR_x86_64-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
@@ -241,6 +287,7 @@ jobs:
 
       - name: Build Android x86
         env:
+          CIRCUIT_C_FILES_DIR: /tmp/circuit_files
           CC_i686-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android24-clang
           CXX_i686-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android24-clang++
           AR_i686-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
