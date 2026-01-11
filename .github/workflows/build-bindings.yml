@@ -98,28 +98,13 @@ jobs:
           TERM: dumb
         run: |
           echo "=== Building React Native bindings ==="
-          echo "=== Trying with various flag combinations ==="
 
-          # Try with all flags we can think of
+          # Use correct flags: --platforms, --mode, --architectures
           mopro build \
             --platforms react-native \
             --mode release \
-            --arch aarch64-apple-ios,aarch64-apple-ios-sim,aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android \
-            2>&1 | tee build.log || {
-
-            echo "=== Full flags failed, trying simpler ==="
-            mopro build --platforms react-native --mode release 2>&1 | tee build.log || {
-
-              echo "=== Checking if there's a non-interactive flag ==="
-              mopro build --help | grep -i "interactive\|prompt\|ci\|yes\|auto" || true
-
-              echo "=== Trying with yes pipe ==="
-              yes | mopro build --platforms react-native 2>&1 | head -1000 | tee build.log || {
-                echo "=== All attempts failed ==="
-                exit 1
-              }
-            }
-          }
+            --architectures aarch64-apple-ios aarch64-apple-ios-sim aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android \
+            2>&1 | tee build.log
 
           echo "=== Build complete, listing ALL outputs ==="
           ls -la
