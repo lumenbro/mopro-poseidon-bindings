@@ -53,8 +53,8 @@ jobs:
 
           if [ -n "$BUILD_DIR" ]; then
             echo "=== Found BUILD_DIR: $BUILD_DIR ==="
-            echo "=== Directory structure: ==="
-            find "$BUILD_DIR" -type d | head -20
+            echo "=== Full directory structure: ==="
+            find "$BUILD_DIR" -type d | head -30
 
             # CRITICAL: Only copy preimage_poseidon circuit files!
             # Multiple circuits (multiplier2, preimage_poseidon) generate s0*.c files
@@ -74,23 +74,36 @@ jobs:
             fi
 
             # Copy shared runtime files from BUILD_DIR root
-            for file in globals.c handlers.c w2c2_base.h; do
+            for file in globals.c handlers.c; do
               if [ -f "$BUILD_DIR/$file" ]; then
                 cp "$BUILD_DIR/$file" /tmp/circuit_files/
                 echo "Copied $file from BUILD_DIR root"
               fi
             done
 
-            # Also check for w2c2 headers in w2c2 subdirectory
-            if [ -d "$BUILD_DIR/w2c2" ]; then
-              cp "$BUILD_DIR/w2c2/"*.h /tmp/circuit_files/ 2>/dev/null || true
-              echo "Copied headers from w2c2/ subdirectory"
+            # Find w2c2_base.h - it's in the w2c2 repo which has structure w2c2/w2c2/w2c2_base.h
+            echo "=== Searching for w2c2_base.h ==="
+            W2C2_BASE=$(find "$BUILD_DIR" -name "w2c2_base.h" -type f | head -1)
+            if [ -n "$W2C2_BASE" ]; then
+              echo "Found w2c2_base.h at: $W2C2_BASE"
+              cp "$W2C2_BASE" /tmp/circuit_files/
+              # Also copy any other w2c2 headers from the same directory
+              W2C2_DIR=$(dirname "$W2C2_BASE")
+              echo "Copying all headers from w2c2 directory: $W2C2_DIR"
+              cp "$W2C2_DIR"/*.h /tmp/circuit_files/ 2>/dev/null || true
+            else
+              echo "WARNING: w2c2_base.h not found in BUILD_DIR!"
+              echo "Searching entire build directory..."
+              find target/release/build -name "w2c2_base.h" -type f 2>/dev/null | head -5
             fi
           fi
 
           echo "=== Final circuit_files contents: ==="
-          ls -la /tmp/circuit_files/ | head -30
+          ls -la /tmp/circuit_files/ | head -40
           echo "Total C files: $(ls /tmp/circuit_files/*.c 2>/dev/null | wc -l)"
+          echo "Total H files: $(ls /tmp/circuit_files/*.h 2>/dev/null | wc -l)"
+          echo "=== Verify w2c2_base.h exists ==="
+          ls -la /tmp/circuit_files/w2c2_base.h || echo "ERROR: w2c2_base.h missing!"
 
       - name: Fix circuit symbol names
         run: |
@@ -328,8 +341,8 @@ jobs:
 
           if [ -n "$BUILD_DIR" ]; then
             echo "=== Found BUILD_DIR: $BUILD_DIR ==="
-            echo "=== Directory structure: ==="
-            find "$BUILD_DIR" -type d | head -20
+            echo "=== Full directory structure: ==="
+            find "$BUILD_DIR" -type d | head -30
 
             # CRITICAL: Only copy preimage_poseidon circuit files!
             # Multiple circuits (multiplier2, preimage_poseidon) generate s0*.c files
@@ -349,23 +362,36 @@ jobs:
             fi
 
             # Copy shared runtime files from BUILD_DIR root
-            for file in globals.c handlers.c w2c2_base.h; do
+            for file in globals.c handlers.c; do
               if [ -f "$BUILD_DIR/$file" ]; then
                 cp "$BUILD_DIR/$file" /tmp/circuit_files/
                 echo "Copied $file from BUILD_DIR root"
               fi
             done
 
-            # Also check for w2c2 headers in w2c2 subdirectory
-            if [ -d "$BUILD_DIR/w2c2" ]; then
-              cp "$BUILD_DIR/w2c2/"*.h /tmp/circuit_files/ 2>/dev/null || true
-              echo "Copied headers from w2c2/ subdirectory"
+            # Find w2c2_base.h - it's in the w2c2 repo which has structure w2c2/w2c2/w2c2_base.h
+            echo "=== Searching for w2c2_base.h ==="
+            W2C2_BASE=$(find "$BUILD_DIR" -name "w2c2_base.h" -type f | head -1)
+            if [ -n "$W2C2_BASE" ]; then
+              echo "Found w2c2_base.h at: $W2C2_BASE"
+              cp "$W2C2_BASE" /tmp/circuit_files/
+              # Also copy any other w2c2 headers from the same directory
+              W2C2_DIR=$(dirname "$W2C2_BASE")
+              echo "Copying all headers from w2c2 directory: $W2C2_DIR"
+              cp "$W2C2_DIR"/*.h /tmp/circuit_files/ 2>/dev/null || true
+            else
+              echo "WARNING: w2c2_base.h not found in BUILD_DIR!"
+              echo "Searching entire build directory..."
+              find target/release/build -name "w2c2_base.h" -type f 2>/dev/null | head -5
             fi
           fi
 
           echo "=== Final circuit_files contents: ==="
-          ls -la /tmp/circuit_files/ | head -30
+          ls -la /tmp/circuit_files/ | head -40
           echo "Total C files: $(ls /tmp/circuit_files/*.c 2>/dev/null | wc -l)"
+          echo "Total H files: $(ls /tmp/circuit_files/*.h 2>/dev/null | wc -l)"
+          echo "=== Verify w2c2_base.h exists ==="
+          ls -la /tmp/circuit_files/w2c2_base.h || echo "ERROR: w2c2_base.h missing!"
 
       - name: Fix circuit symbol names (Android)
         run: |
