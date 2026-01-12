@@ -104,6 +104,49 @@ jobs:
           CIRCUIT_C_FILES_DIR: /tmp/circuit_files
         run: cargo build --release --target aarch64-apple-ios-sim
 
+      - name: Merge circuit library into main library (iOS)
+        run: |
+          # The circuit C code is compiled by cc-rs into libcircuit.a
+          # We need to merge it with libmopro_example_app.a so all symbols are included
+
+          for target in aarch64-apple-ios aarch64-apple-ios-sim; do
+            echo "=== Merging libraries for $target ==="
+
+            # Find the circuit library in the build directory
+            CIRCUIT_LIB=$(find target/$target/release/build -name "libcircuit.a" 2>/dev/null | head -1)
+            MAIN_LIB="target/$target/release/libmopro_example_app.a"
+
+            if [ -n "$CIRCUIT_LIB" ] && [ -f "$CIRCUIT_LIB" ]; then
+              echo "Found circuit lib: $CIRCUIT_LIB"
+
+              # Create temp directory for merging
+              MERGE_DIR=$(mktemp -d)
+              cd "$MERGE_DIR"
+
+              # Extract objects from both libraries using libtool for better compatibility
+              ar x "$CIRCUIT_LIB"
+              ar x "$MAIN_LIB"
+
+              # List extracted objects
+              echo "Extracted objects:"
+              ls -la *.o 2>/dev/null | head -20
+
+              # Create merged library using libtool for iOS compatibility
+              libtool -static -o merged.a *.o 2>/dev/null || ar rcs merged.a *.o
+
+              # Replace original library
+              cp merged.a "$MAIN_LIB"
+
+              cd -
+              rm -rf "$MERGE_DIR"
+
+              echo "Merged library created for $target"
+            else
+              echo "Warning: Circuit library not found for $target"
+              find target/$target/release/build -name "*.a" 2>/dev/null | head -10
+            fi
+          done
+
       - name: Generate UniFFI bindings
         run: |
           mkdir -p generated/cpp generated/typescript
@@ -301,6 +344,49 @@ jobs:
           CXX_i686-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android24-clang++
           AR_i686-linux-android: ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
         run: cargo build --release --target i686-linux-android
+
+      - name: Merge circuit library into main library (Android)
+        run: |
+          # The circuit C code is compiled by cc-rs into libcircuit.a
+          # We need to merge it with libmopro_example_app.a so all symbols are included
+
+          for target in aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android; do
+            echo "=== Merging libraries for $target ==="
+
+            # Find the circuit library in the build directory
+            CIRCUIT_LIB=$(find target/$target/release/build -name "libcircuit.a" 2>/dev/null | head -1)
+            MAIN_LIB="target/$target/release/libmopro_example_app.a"
+
+            if [ -n "$CIRCUIT_LIB" ] && [ -f "$CIRCUIT_LIB" ]; then
+              echo "Found circuit lib: $CIRCUIT_LIB"
+
+              # Create temp directory for merging
+              MERGE_DIR=$(mktemp -d)
+              cd "$MERGE_DIR"
+
+              # Extract objects from both libraries
+              ar x "$CIRCUIT_LIB"
+              ar x "$MAIN_LIB"
+
+              # List extracted objects
+              echo "Extracted objects:"
+              ls -la *.o 2>/dev/null | head -20
+
+              # Create merged library
+              ar rcs merged.a *.o
+
+              # Replace original library
+              cp merged.a "$MAIN_LIB"
+
+              cd -
+              rm -rf "$MERGE_DIR"
+
+              echo "Merged library created for $target"
+            else
+              echo "Warning: Circuit library not found for $target"
+              find target/$target/release/build -name "*.a" 2>/dev/null | head -10
+            fi
+          done
 
       - name: Package Android libraries
         run: |
