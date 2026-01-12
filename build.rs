@@ -21,10 +21,11 @@ fn main() {
             let circuit_path = PathBuf::from(&circuit_dir);
 
             // Find circuit C files in the directory
-            // w2c2 with -f 1 generates multiple C files:
-            // - preimage_poseidon.c (main exports and entry points)
-            // - s0000000001.c, s0000000002.c, ... (individual functions)
-            // We include both the main circuit file AND the s0*.c chunk files
+            // rust-witness generates several types of C files:
+            // - preimage_poseidon.c (main circuit exports and entry points)
+            // - s0000000001.c, s0000000002.c, ... (individual function chunks from w2c2 -f 1)
+            // - globals.c (witness_c_init, witness_c_resolver, witness_c_cleanup)
+            // - handlers.c (module-specific runtime handlers like preimage_poseidon_runtime__exceptionHandler)
             let mut c_files: Vec<PathBuf> = Vec::new();
             if let Ok(entries) = std::fs::read_dir(&circuit_path) {
                 for entry in entries.filter_map(|e| e.ok()) {
@@ -33,9 +34,12 @@ fn main() {
                         // Include:
                         // 1. preimage_poseidon*.c - main circuit file
                         // 2. s0*.c - w2c2 function chunk files (s0000000001.c, etc.)
+                        // 3. globals.c - witness lifecycle functions
+                        // 4. handlers.c - runtime exception/error handlers
                         let is_circuit_file = file_name.starts_with("preimage_poseidon") && file_name.ends_with(".c");
                         let is_chunk_file = file_name.starts_with("s0") && file_name.ends_with(".c");
-                        if is_circuit_file || is_chunk_file {
+                        let is_runtime_file = file_name == "globals.c" || file_name == "handlers.c";
+                        if is_circuit_file || is_chunk_file || is_runtime_file {
                             c_files.push(path);
                         }
                     }
