@@ -20,27 +20,43 @@ fn main() {
 
             let circuit_path = PathBuf::from(&circuit_dir);
 
-            // Find and compile the circuit C file
-            let c_file = circuit_path.join("preimage_poseidon.c");
-            if c_file.exists() {
-                let mut build = cc::Build::new();
-                build
-                    .file(&c_file)
-                    .include(&circuit_path)
-                    .opt_level(3);
-
-                // For Android, we need _GNU_SOURCE to get proper locale_t definition
-                // from the NDK headers
-                if is_android {
-                    build.define("_GNU_SOURCE", None);
+            // Find ALL C files in the circuit directory
+            // w2c2 generates multiple C files for large circuits:
+            // - preimage_poseidon.c (main exports)
+            // - preimage_poseidon_XX.c (internal functions in chunks)
+            let mut c_files: Vec<PathBuf> = Vec::new();
+            if let Ok(entries) = std::fs::read_dir(&circuit_path) {
+                for entry in entries.filter_map(|e| e.ok()) {
+                    let path = entry.path();
+                    if path.extension().map_or(false, |ext| ext == "c") {
+                        c_files.push(path);
+                    }
                 }
-
-                build.compile("circuit");
-
-                println!("cargo:rerun-if-changed={}", c_file.display());
-            } else {
-                panic!("Pre-generated circuit file not found: {}", c_file.display());
             }
+
+            if c_files.is_empty() {
+                panic!("No C files found in circuit directory: {}", circuit_path.display());
+            }
+
+            println!("cargo:warning=Found {} C files to compile", c_files.len());
+            for f in &c_files {
+                println!("cargo:warning=  - {}", f.display());
+            }
+
+            let mut build = cc::Build::new();
+            for c_file in &c_files {
+                build.file(c_file);
+                println!("cargo:rerun-if-changed={}", c_file.display());
+            }
+            build.include(&circuit_path).opt_level(3);
+
+            // For Android, we need _GNU_SOURCE to get proper locale_t definition
+            // from the NDK headers
+            if is_android {
+                build.define("_GNU_SOURCE", None);
+            }
+
+            build.compile("circuit");
         } else {
             // No pre-generated files - this will likely fail for cross-compilation
             panic!("CIRCUIT_C_FILES_DIR must be set for cross-compilation to {} - run native build first to generate circuit files", target);
