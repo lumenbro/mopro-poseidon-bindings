@@ -20,16 +20,20 @@ fn main() {
 
             let circuit_path = PathBuf::from(&circuit_dir);
 
-            // Find ALL C files in the circuit directory
+            // Find preimage_poseidon C files in the circuit directory
             // w2c2 generates multiple C files for large circuits:
             // - preimage_poseidon.c (main exports)
             // - preimage_poseidon_XX.c (internal functions in chunks)
+            // We filter by filename prefix to avoid compiling unrelated test files
             let mut c_files: Vec<PathBuf> = Vec::new();
             if let Ok(entries) = std::fs::read_dir(&circuit_path) {
                 for entry in entries.filter_map(|e| e.ok()) {
                     let path = entry.path();
-                    if path.extension().map_or(false, |ext| ext == "c") {
-                        c_files.push(path);
+                    if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                        // Only include preimage_poseidon*.c files (the actual circuit)
+                        if file_name.starts_with("preimage_poseidon") && file_name.ends_with(".c") {
+                            c_files.push(path);
+                        }
                     }
                 }
             }
