@@ -50,11 +50,47 @@ jobs:
           BUILD_DIR=$(find target/release/build -maxdepth 2 -type d -name "out" -path "*mopro_example_app*" | head -1)
           echo "dir=$BUILD_DIR" >> $GITHUB_OUTPUT
           mkdir -p /tmp/circuit_files
+
           if [ -n "$BUILD_DIR" ]; then
-            find "$BUILD_DIR" -name "*.c" -exec cp {} /tmp/circuit_files/ \;
-            find "$BUILD_DIR" -name "*.h" -exec cp {} /tmp/circuit_files/ \;
+            echo "=== Found BUILD_DIR: $BUILD_DIR ==="
+            echo "=== Directory structure: ==="
+            find "$BUILD_DIR" -type d | head -20
+
+            # CRITICAL: Only copy preimage_poseidon circuit files!
+            # Multiple circuits (multiplier2, preimage_poseidon) generate s0*.c files
+            # with the same names. Copying all would cause overwrites.
+
+            # Copy preimage_poseidon circuit files from its subdirectory
+            POSEIDON_DIR="$BUILD_DIR/preimage_poseidon"
+            if [ -d "$POSEIDON_DIR" ]; then
+              echo "=== Copying preimage_poseidon files from $POSEIDON_DIR ==="
+              cp "$POSEIDON_DIR"/*.c /tmp/circuit_files/ 2>/dev/null || true
+              cp "$POSEIDON_DIR"/*.h /tmp/circuit_files/ 2>/dev/null || true
+              echo "Copied $(ls "$POSEIDON_DIR"/*.c 2>/dev/null | wc -l) C files from preimage_poseidon/"
+            else
+              echo "WARNING: preimage_poseidon subdirectory not found!"
+              echo "Available subdirectories:"
+              ls -la "$BUILD_DIR"
+            fi
+
+            # Copy shared runtime files from BUILD_DIR root
+            for file in globals.c handlers.c w2c2_base.h; do
+              if [ -f "$BUILD_DIR/$file" ]; then
+                cp "$BUILD_DIR/$file" /tmp/circuit_files/
+                echo "Copied $file from BUILD_DIR root"
+              fi
+            done
+
+            # Also check for w2c2 headers in w2c2 subdirectory
+            if [ -d "$BUILD_DIR/w2c2" ]; then
+              cp "$BUILD_DIR/w2c2/"*.h /tmp/circuit_files/ 2>/dev/null || true
+              echo "Copied headers from w2c2/ subdirectory"
+            fi
           fi
-          ls -la /tmp/circuit_files/
+
+          echo "=== Final circuit_files contents: ==="
+          ls -la /tmp/circuit_files/ | head -30
+          echo "Total C files: $(ls /tmp/circuit_files/*.c 2>/dev/null | wc -l)"
 
       - name: Fix circuit symbol names
         run: |
@@ -289,13 +325,47 @@ jobs:
         run: |
           BUILD_DIR=$(find target/release/build -maxdepth 2 -type d -name "out" -path "*mopro_example_app*" | head -1)
           mkdir -p /tmp/circuit_files
+
           if [ -n "$BUILD_DIR" ]; then
-            echo "Found circuit files in: $BUILD_DIR"
-            find "$BUILD_DIR" -name "*.c" -exec cp {} /tmp/circuit_files/ \;
-            find "$BUILD_DIR" -name "*.h" -exec cp {} /tmp/circuit_files/ \;
+            echo "=== Found BUILD_DIR: $BUILD_DIR ==="
+            echo "=== Directory structure: ==="
+            find "$BUILD_DIR" -type d | head -20
+
+            # CRITICAL: Only copy preimage_poseidon circuit files!
+            # Multiple circuits (multiplier2, preimage_poseidon) generate s0*.c files
+            # with the same names. Copying all would cause overwrites.
+
+            # Copy preimage_poseidon circuit files from its subdirectory
+            POSEIDON_DIR="$BUILD_DIR/preimage_poseidon"
+            if [ -d "$POSEIDON_DIR" ]; then
+              echo "=== Copying preimage_poseidon files from $POSEIDON_DIR ==="
+              cp "$POSEIDON_DIR"/*.c /tmp/circuit_files/ 2>/dev/null || true
+              cp "$POSEIDON_DIR"/*.h /tmp/circuit_files/ 2>/dev/null || true
+              echo "Copied $(ls "$POSEIDON_DIR"/*.c 2>/dev/null | wc -l) C files from preimage_poseidon/"
+            else
+              echo "WARNING: preimage_poseidon subdirectory not found!"
+              echo "Available subdirectories:"
+              ls -la "$BUILD_DIR"
+            fi
+
+            # Copy shared runtime files from BUILD_DIR root
+            for file in globals.c handlers.c w2c2_base.h; do
+              if [ -f "$BUILD_DIR/$file" ]; then
+                cp "$BUILD_DIR/$file" /tmp/circuit_files/
+                echo "Copied $file from BUILD_DIR root"
+              fi
+            done
+
+            # Also check for w2c2 headers in w2c2 subdirectory
+            if [ -d "$BUILD_DIR/w2c2" ]; then
+              cp "$BUILD_DIR/w2c2/"*.h /tmp/circuit_files/ 2>/dev/null || true
+              echo "Copied headers from w2c2/ subdirectory"
+            fi
           fi
-          echo "=== Circuit files ==="
-          ls -la /tmp/circuit_files/
+
+          echo "=== Final circuit_files contents: ==="
+          ls -la /tmp/circuit_files/ | head -30
+          echo "Total C files: $(ls /tmp/circuit_files/*.c 2>/dev/null | wc -l)"
 
       - name: Fix circuit symbol names (Android)
         run: |
