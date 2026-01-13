@@ -32,11 +32,13 @@ fn main() {
                     let path = entry.path();
                     if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
                         // Include:
-                        // 1. preimage_poseidon*.c - main circuit file
+                        // 1. *_poseidon*.c - main circuit files (preimage_poseidon, universal_poseidon, etc.)
                         // 2. s0*.c - w2c2 function chunk files (s0000000001.c, etc.)
                         // 3. globals.c - witness lifecycle functions
                         // 4. handlers.c - runtime exception/error handlers
-                        let is_circuit_file = file_name.starts_with("preimage_poseidon") && file_name.ends_with(".c");
+                        let is_circuit_file = file_name.ends_with(".c") &&
+                            (file_name.starts_with("preimage_poseidon") ||
+                             file_name.starts_with("universal_poseidon"));
                         let is_chunk_file = file_name.starts_with("s0") && file_name.ends_with(".c");
                         let is_runtime_file = file_name == "globals.c" || file_name == "handlers.c";
                         if is_circuit_file || is_chunk_file || is_runtime_file {

@@ -107,21 +107,23 @@ jobs:
 
       - name: Fix circuit symbol names
         run: |
-          # w2c2 generates symbols without underscore (preimageposeidon)
-          # but Rust expects underscore (preimage_poseidon)
+          # w2c2 generates symbols without underscore (preimageposeidon, universalposeidon)
+          # but Rust expects underscore (preimage_poseidon, universal_poseidon)
           # Rename all occurrences in C and H files
           echo "Fixing symbol names in circuit files..."
           for file in /tmp/circuit_files/*.c /tmp/circuit_files/*.h; do
             if [ -f "$file" ]; then
-              # Rename function/symbol names: preimageposeidon -> preimage_poseidon
+              # Rename function/symbol names for all circuits
               sed -i '' 's/preimageposeidon/preimage_poseidon/g' "$file" 2>/dev/null || \
               sed -i 's/preimageposeidon/preimage_poseidon/g' "$file"
+              sed -i '' 's/universalposeidon/universal_poseidon/g' "$file" 2>/dev/null || \
+              sed -i 's/universalposeidon/universal_poseidon/g' "$file"
               echo "Patched: $file"
             fi
           done
           # Verify the fix
-          echo "=== Checking for preimage_poseidon symbols ==="
-          grep -l "preimage_poseidon" /tmp/circuit_files/*.c 2>/dev/null || echo "No .c files with symbol"
+          echo "=== Checking for circuit symbols ==="
+          grep -l "preimage_poseidon\|universal_poseidon" /tmp/circuit_files/*.c 2>/dev/null || echo "No .c files with symbols"
 
       - name: Patch w2c2 headers for iOS compatibility
         run: |
@@ -395,20 +397,21 @@ jobs:
 
       - name: Fix circuit symbol names (Android)
         run: |
-          # w2c2 generates symbols without underscore (preimageposeidon)
-          # but Rust expects underscore (preimage_poseidon)
+          # w2c2 generates symbols without underscore (preimageposeidon, universalposeidon)
+          # but Rust expects underscore (preimage_poseidon, universal_poseidon)
           # Rename all occurrences in C and H files
           echo "Fixing symbol names in circuit files..."
           for file in /tmp/circuit_files/*.c /tmp/circuit_files/*.h; do
             if [ -f "$file" ]; then
-              # Rename function/symbol names: preimageposeidon -> preimage_poseidon
+              # Rename function/symbol names for all circuits
               sed -i 's/preimageposeidon/preimage_poseidon/g' "$file"
+              sed -i 's/universalposeidon/universal_poseidon/g' "$file"
               echo "Patched: $file"
             fi
           done
           # Verify the fix
-          echo "=== Checking for preimage_poseidon symbols ==="
-          grep -l "preimage_poseidon" /tmp/circuit_files/*.c 2>/dev/null || echo "No .c files with symbol"
+          echo "=== Checking for circuit symbols ==="
+          grep -l "preimage_poseidon\|universal_poseidon" /tmp/circuit_files/*.c 2>/dev/null || echo "No .c files with symbols"
 
       - name: Patch w2c2 headers for Android compatibility
         run: |
