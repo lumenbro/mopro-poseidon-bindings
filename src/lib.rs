@@ -48,10 +48,12 @@ pub use circom::{
 
 mod witness {
     rust_witness::witness!(preimage_poseidon);
+    rust_witness::witness!(universal_poseidon);
 }
 
 crate::set_circom_circuits! {
     ("preimage_poseidon_final.zkey", circom_prover::witness::WitnessFn::RustWitness(witness::preimage_poseidon_witness)),
+    ("universal_poseidon_final.zkey", circom_prover::witness::WitnessFn::RustWitness(witness::universal_poseidon_witness)),
 }
 
 #[cfg(test)]
