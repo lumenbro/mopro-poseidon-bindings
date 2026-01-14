@@ -56,19 +56,45 @@ jobs:
             echo "=== Full directory structure: ==="
             find "$BUILD_DIR" -type d | head -30
 
-            # CRITICAL: Only copy preimage_poseidon circuit files!
-            # Multiple circuits (multiplier2, preimage_poseidon) generate s0*.c files
-            # with the same names. Copying all would cause overwrites.
+            # Copy circuit files from BOTH preimage_poseidon and universal_poseidon directories
+            # The s0*.c chunk files have identical names, so we rename them with circuit prefix
 
-            # Copy preimage_poseidon circuit files from its subdirectory
-            POSEIDON_DIR="$BUILD_DIR/preimage_poseidon"
-            if [ -d "$POSEIDON_DIR" ]; then
-              echo "=== Copying preimage_poseidon files from $POSEIDON_DIR ==="
-              cp "$POSEIDON_DIR"/*.c /tmp/circuit_files/ 2>/dev/null || true
-              cp "$POSEIDON_DIR"/*.h /tmp/circuit_files/ 2>/dev/null || true
-              echo "Copied $(ls "$POSEIDON_DIR"/*.c 2>/dev/null | wc -l) C files from preimage_poseidon/"
+            # Copy preimage_poseidon circuit files
+            PREIMAGE_DIR="$BUILD_DIR/preimage_poseidon"
+            if [ -d "$PREIMAGE_DIR" ]; then
+              echo "=== Copying preimage_poseidon files from $PREIMAGE_DIR ==="
+              # Copy main circuit file directly
+              cp "$PREIMAGE_DIR"/preimage_poseidon.c /tmp/circuit_files/ 2>/dev/null || true
+              cp "$PREIMAGE_DIR"/preimage_poseidon.h /tmp/circuit_files/ 2>/dev/null || true
+              # Rename s0*.c files with _preimage suffix to avoid overwrite
+              for f in "$PREIMAGE_DIR"/s0*.c; do
+                if [ -f "$f" ]; then
+                  base=$(basename "$f" .c)
+                  cp "$f" "/tmp/circuit_files/${base}_preimage.c"
+                fi
+              done
+              echo "Copied preimage_poseidon files with renamed chunks"
             else
               echo "WARNING: preimage_poseidon subdirectory not found!"
+            fi
+
+            # Copy universal_poseidon circuit files
+            UNIVERSAL_DIR="$BUILD_DIR/universal_poseidon"
+            if [ -d "$UNIVERSAL_DIR" ]; then
+              echo "=== Copying universal_poseidon files from $UNIVERSAL_DIR ==="
+              # Copy main circuit file directly
+              cp "$UNIVERSAL_DIR"/universal_poseidon.c /tmp/circuit_files/ 2>/dev/null || true
+              cp "$UNIVERSAL_DIR"/universal_poseidon.h /tmp/circuit_files/ 2>/dev/null || true
+              # Rename s0*.c files with _universal suffix to avoid overwrite
+              for f in "$UNIVERSAL_DIR"/s0*.c; do
+                if [ -f "$f" ]; then
+                  base=$(basename "$f" .c)
+                  cp "$f" "/tmp/circuit_files/${base}_universal.c"
+                fi
+              done
+              echo "Copied universal_poseidon files with renamed chunks"
+            else
+              echo "WARNING: universal_poseidon subdirectory not found!"
               echo "Available subdirectories:"
               ls -la "$BUILD_DIR"
             fi
@@ -346,19 +372,45 @@ jobs:
             echo "=== Full directory structure: ==="
             find "$BUILD_DIR" -type d | head -30
 
-            # CRITICAL: Only copy preimage_poseidon circuit files!
-            # Multiple circuits (multiplier2, preimage_poseidon) generate s0*.c files
-            # with the same names. Copying all would cause overwrites.
+            # Copy circuit files from BOTH preimage_poseidon and universal_poseidon directories
+            # The s0*.c chunk files have identical names, so we rename them with circuit prefix
 
-            # Copy preimage_poseidon circuit files from its subdirectory
-            POSEIDON_DIR="$BUILD_DIR/preimage_poseidon"
-            if [ -d "$POSEIDON_DIR" ]; then
-              echo "=== Copying preimage_poseidon files from $POSEIDON_DIR ==="
-              cp "$POSEIDON_DIR"/*.c /tmp/circuit_files/ 2>/dev/null || true
-              cp "$POSEIDON_DIR"/*.h /tmp/circuit_files/ 2>/dev/null || true
-              echo "Copied $(ls "$POSEIDON_DIR"/*.c 2>/dev/null | wc -l) C files from preimage_poseidon/"
+            # Copy preimage_poseidon circuit files
+            PREIMAGE_DIR="$BUILD_DIR/preimage_poseidon"
+            if [ -d "$PREIMAGE_DIR" ]; then
+              echo "=== Copying preimage_poseidon files from $PREIMAGE_DIR ==="
+              # Copy main circuit file directly
+              cp "$PREIMAGE_DIR"/preimage_poseidon.c /tmp/circuit_files/ 2>/dev/null || true
+              cp "$PREIMAGE_DIR"/preimage_poseidon.h /tmp/circuit_files/ 2>/dev/null || true
+              # Rename s0*.c files with _preimage suffix to avoid overwrite
+              for f in "$PREIMAGE_DIR"/s0*.c; do
+                if [ -f "$f" ]; then
+                  base=$(basename "$f" .c)
+                  cp "$f" "/tmp/circuit_files/${base}_preimage.c"
+                fi
+              done
+              echo "Copied preimage_poseidon files with renamed chunks"
             else
               echo "WARNING: preimage_poseidon subdirectory not found!"
+            fi
+
+            # Copy universal_poseidon circuit files
+            UNIVERSAL_DIR="$BUILD_DIR/universal_poseidon"
+            if [ -d "$UNIVERSAL_DIR" ]; then
+              echo "=== Copying universal_poseidon files from $UNIVERSAL_DIR ==="
+              # Copy main circuit file directly
+              cp "$UNIVERSAL_DIR"/universal_poseidon.c /tmp/circuit_files/ 2>/dev/null || true
+              cp "$UNIVERSAL_DIR"/universal_poseidon.h /tmp/circuit_files/ 2>/dev/null || true
+              # Rename s0*.c files with _universal suffix to avoid overwrite
+              for f in "$UNIVERSAL_DIR"/s0*.c; do
+                if [ -f "$f" ]; then
+                  base=$(basename "$f" .c)
+                  cp "$f" "/tmp/circuit_files/${base}_universal.c"
+                fi
+              done
+              echo "Copied universal_poseidon files with renamed chunks"
+            else
+              echo "WARNING: universal_poseidon subdirectory not found!"
               echo "Available subdirectories:"
               ls -la "$BUILD_DIR"
             fi
