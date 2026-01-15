@@ -491,14 +491,6 @@ jobs:
             sed -i 's|#include "string.h"|#include <string.h>|g' /tmp/circuit_files/w2c2_base.h
             sed -i 's|#include "stdlib.h"|#include <stdlib.h>|g' /tmp/circuit_files/w2c2_base.h
 
-            # Add locale_t typedef at the very beginning of the file
-            # Android NDK's string.h/stdlib.h use locale_t but it's not always defined
-            # Note: sed -i '1i...\n...' doesn't work on GNU sed, so we use printf instead
-            printf '%s\n' '/* Android locale_t fix */' '#ifndef __LOCALE_T_DEFINED' '#define __LOCALE_T_DEFINED' 'typedef struct __locale_struct* locale_t;' '#endif' '' > /tmp/locale_fix.h
-            cat /tmp/locale_fix.h /tmp/circuit_files/w2c2_base.h > /tmp/w2c2_base_fixed.h
-            mv /tmp/w2c2_base_fixed.h /tmp/circuit_files/w2c2_base.h
-            rm /tmp/locale_fix.h
-
             echo "=== Patched w2c2_base.h (first 30 lines) ==="
             head -30 /tmp/circuit_files/w2c2_base.h
           fi
